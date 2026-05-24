@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matrix Graph — Heart</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root { --cell-size: 80px; }
+
+body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.container {
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.panel {
+    background: #16213e;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.panel h2 {
+    text-align: center;
+    margin-bottom: 16px;
+    font-size: 1.2rem;
+    color: #e94560;
+    letter-spacing: 2px;
+}
+
+/* Matrix Grid */
+.matrix-wrapper {
+    display: flex;
+    justify-content: center;
+}
+
+.matrix-grid {
+    display: grid;
+    grid-template-columns: repeat(5, var(--cell-size));
+    grid-template-rows: repeat(5, var(--cell-size));
+    gap: 2px;
+    background: #0f3460;
+    padding: 2px;
+    border-radius: 4px;
+    user-select: none;
+}
+
+.matrix-cell {
+    width: var(--cell-size);
+    height: var(--cell-size);
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-family: 'Consolas', 'Courier New', monospace;
+    color: #1a1a2e;
+    transition: all 0.12s;
+}
+
+.matrix-cell:hover {
+    outline: 2px solid #e94560;
+    outline-offset: -2px;
+    z-index: 1;
+    transform: scale(1.15);
+}
+
+.matrix-cell.val-0 { background: #e8e8e8; color: #bbb; }
+.matrix-cell.val-1 { background: #ef9a9a; color: #b71c1c; }
+.matrix-cell.val-2 { background: #f8bbd0; color: #880e4f; }
+.matrix-cell.val-3 { background: #bcaaa4; color: #3e2723; }
+
+/* Canvas */
+.canvas-wrapper {
+    display: flex;
+    justify-content: center;
+}
+
+canvas {
+    border-radius: 8px;
+}
+
+/* Controls */
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 16px;
+}
+
+.controls button {
+    padding: 8px 16px;
+    border: 1px solid #e94560;
+    background: transparent;
+    color: #e94560;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.controls button:hover {
+    background: #e94560;
+    color: #fff;
+}
+
+.controls button:active {
+    transform: scale(0.96);
+}
+
+.control-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+}
+
+.control-label {
+    width: 100%;
+    text-align: center;
+    font-size: 0.75rem;
+    color: #888;
+    margin-bottom: 2px;
+}
+
+/* Color palette */
+.color-palette {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+    margin-top: 12px;
+}
+
+.color-swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.color-swatch:hover { transform: scale(1.15); }
+.color-swatch.active { border-color: #fff; box-shadow: 0 0 10px rgba(255,255,255,0.4); }
+
+.color-swatch.erase { background: #f0f0f0; }
+.color-swatch.red   { background: #e53935; }
+.color-swatch.pink  { background: #ec407a; }
+.color-swatch.brown { background: #795548; }
+
+.palette-label {
+    font-size: 0.8rem;
+    color: #aaa;
+    margin-right: 4px;
+}
+
+/* Stats */
+.stats {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 0.75rem;
+    color: #888;
+}
+
+/* Divider */
+.control-divider {
+    width: 100%;
+    height: 1px;
+    background: #0f3460;
+    margin: 4px 0;
+}
+
+/* Section title */
+.section-title {
+    font-size: 0.8rem;
+    color: #aaa;
+    text-align: center;
+    margin: 8px 0 4px;
+    letter-spacing: 1px;
+}
+
+/* Tablet / small landscape */
+@media (max-width: 860px) {
+    .container { gap: 16px; }
+    .panel { padding: 16px; }
+    body { padding: 10px; }
+}
+
+/* Phone portrait */
+@media (max-width: 700px) {
+    .container { gap: 12px; }
+    .panel { padding: 12px; }
+    body { padding: 8px; }
+    .matrix-cell { font-size: 1.2rem; }
+    .panel h2 { font-size: 1rem; margin-bottom: 10px; }
+    .controls button { font-size: 0.78rem; padding: 6px 12px; }
+    .section-title { font-size: 0.7rem; }
+    .stats { font-size: 0.7rem; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+    <!-- Left: Matrix Panel -->
+    <div class="panel" id="matrixPanel">
+        <h2>MATRIX</h2>
+        <div class="matrix-wrapper">
+            <div class="matrix-grid" id="matrixGrid"></div>
+        </div>
+        <div class="stats" id="matrixStats"></div>
+        <div class="section-title">Paint Color</div>
+        <div class="color-palette" id="colorPalette">
+            <div class="color-swatch erase active" data-color="0" title="Eraser"></div>
+            <div class="color-swatch red" data-color="1" title="Red (Body)"></div>
+            <div class="color-swatch pink" data-color="2" title="Pink (Highlight)"></div>
+            <div class="color-swatch brown" data-color="3" title="Brown"></div>
+        </div>
+        <div class="section-title">Matrix Operations</div>
+        <div class="controls" id="matrixControls">
+            <button id="btnClear">Clear</button>
+            <button id="btnFill">Fill Red</button>
+            <button id="btnInvert">Invert</button>
+            <button id="btnReset">Reset Heart</button>
+        </div>
+    </div>
+
+    <!-- Right: Graph Panel -->
+    <div class="panel" id="graphPanel">
+        <h2>GRAPH</h2>
+        <div class="canvas-wrapper">
+            <canvas id="graphCanvas" width="400" height="400"></canvas>
+        </div>
+        <div class="section-title">Transformations</div>
+        <div class="controls" id="graphControls">
+            <button data-rotate="90">Rotate 90°</button>
+            <button data-flip="h">Flip H</button>
+            <button data-flip="v">Flip V</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ===== Constants =====
+const SIZE = 5;
+let CANVAS_CELL_PX = 80;
+
+const CANVAS_COLORS = {
+    0: '#fafaf5',
+    1: '#e53935',
+    2: '#ec407a',
+    3: '#8d6e63',
+};
+
+// Lighter tints for gradient highlights (top-left light source)
+const CANVAS_COLORS_LIGHT = {
+    1: '#ff6659',
+    2: '#ff77a9',
+    3: '#bcaaa4',
+};
+
+// ===== Dynamic Cell Sizing =====
+function computeCellSize() {
+    const vw = window.innerWidth;
+    const BODY_PAD = vw <= 700 ? 16 : (vw <= 860 ? 20 : 40);
+    const PANEL_PAD = vw <= 700 ? 24 : (vw <= 860 ? 32 : 48);
+    const CONTAINER_GAP = vw <= 700 ? 12 : (vw <= 860 ? 16 : 40);
+    const GRID_PAD = 4;  // matrix-grid padding (2px * 2)
+    const CELL_GAP = 8;  // 4 gaps of 2px between cells
+
+    let available;
+    if (vw >= 700) {
+        // Side by side: each panel gets roughly half
+        available = (vw - BODY_PAD - CONTAINER_GAP - PANEL_PAD * 2) / 2;
+    } else {
+        // Stacked: full width
+        available = vw - BODY_PAD - PANEL_PAD;
+    }
+    available -= GRID_PAD + CELL_GAP;
+    return Math.min(80, Math.max(44, Math.floor(available / 5)));
+}
+
+let resizeTimer;
+function handleResize() {
+    const cellSize = computeCellSize();
+    if (cellSize === CANVAS_CELL_PX) return;
+
+    CANVAS_CELL_PX = cellSize;
+    document.documentElement.style.setProperty('--cell-size', cellSize + 'px');
+    canvas.width = SIZE * CANVAS_CELL_PX;
+    canvas.height = SIZE * CANVAS_CELL_PX;
+    renderCanvas();
+}
+
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(handleResize, 150);
+});
+
+// ===== Heart Shape Definition (5x5) =====
+// 0=empty, 1=red body, 2=pink highlight
+function createHeartMatrix() {
+    return [
+        [0, 1, 0, 1, 0],  // top bumps
+        [1, 1, 1, 1, 1],  // upper fill
+        [1, 1, 2, 1, 1],  // middle with pink highlight
+        [0, 1, 1, 1, 0],  // lower body
+        [0, 0, 1, 0, 0],  // bottom tip
+    ];
+}
+
+// ===== Matrix Transformations =====
+
+function flipHorizontal(m) {
+    return m.map(row => [...row].reverse());
+}
+
+function flipVertical(m) {
+    const n = m.length;
+    const result = Array.from({ length: n }, () => Array(n).fill(0));
+    for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+            result[i][j] = m[n - 1 - i][j];
+        }
+    }
+    return result;
+}
+
+function rotateMatrix(m, degrees) {
+    const n = m.length;
+    const result = Array.from({ length: n }, () => Array(n).fill(0));
+    const cx = (n - 1) / 2;
+    const cy = (n - 1) / 2;
+
+    if (degrees === 90) {
+        // Exact 90° clockwise
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+                result[i][j] = m[n - 1 - j][i];
+            }
+        }
+        return result;
+    }
+
+    if (degrees === 180) {
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+                result[i][j] = m[n - 1 - i][n - 1 - j];
+            }
+        }
+        return result;
+    }
+
+    if (degrees === 270) {
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+                result[i][j] = m[j][n - 1 - i];
+            }
+        }
+        return result;
+    }
+
+    // Arbitrary angle using reverse mapping + nearest neighbor
+    const rad = degrees * Math.PI / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+
+    for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+            // Reverse mapping: find source coordinates
+            const dx = j - cx;
+            const dy = i - cy;
+            const srcX = dx * cos + dy * sin + cx;
+            const srcY = -dx * sin + dy * cos + cy;
+
+            const si = Math.round(srcY);
+            const sj = Math.round(srcX);
+
+            if (si >= 0 && si < n && sj >= 0 && sj < n) {
+                result[i][j] = m[si][sj];
+            }
+        }
+    }
+
+    return result;
+}
+
+// ===== State =====
+let currentMatrix = createHeartMatrix();
+let paintColor = 0;
+
+// ===== DOM Elements =====
+const matrixGrid = document.getElementById('matrixGrid');
+const canvas = document.getElementById('graphCanvas');
+const ctx = canvas.getContext('2d');
+
+// Polyfill for ctx.roundRect (not available in older browsers)
+if (!ctx.roundRect) {
+    ctx.roundRect = function (x, y, w, h, r) {
+        if (typeof r === 'number') r = { tl: r, tr: r, br: r, bl: r };
+        ctx.moveTo(x + r.tl, y);
+        ctx.lineTo(x + w - r.tr, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r.tr);
+        ctx.lineTo(x + w, y + h - r.br);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r.br, y + h);
+        ctx.lineTo(x + r.bl, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r.bl);
+        ctx.lineTo(x, y + r.tl);
+        ctx.quadraticCurveTo(x, y, x + r.tl, y);
+        ctx.closePath();
+    };
+}
+
+const matrixStats = document.getElementById('matrixStats');
+const colorSwatches = document.querySelectorAll('.color-swatch');
+
+// ===== Render Canvas (Enhanced) =====
+function renderCanvas() {
+    const CELL = CANVAS_CELL_PX;
+    const RADIUS = CELL * 0.175;
+    const GAP = 1;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Background
+    ctx.fillStyle = '#f5f0eb';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Compute overall shape bounding box for highlight
+    let allMinI = SIZE, allMaxI = 0, allMinJ = SIZE, allMaxJ = 0;
+    let hasContent = false;
+    for (let i = 0; i < SIZE; i++) {
+        for (let j = 0; j < SIZE; j++) {
+            if (currentMatrix[i][j] !== 0) {
+                hasContent = true;
+                allMinI = Math.min(allMinI, i);
+                allMaxI = Math.max(allMaxI, i);
+                allMinJ = Math.min(allMinJ, j);
+                allMaxJ = Math.max(allMaxJ, j);
+            }
+        }
+    }
+
+    // Draw each non-zero cell as a polished rounded rect with gradient
+    const blur = CELL * 0.125;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.25)';
+    ctx.shadowBlur = blur;
+    ctx.shadowOffsetX = blur * 0.2;
+    ctx.shadowOffsetY = blur * 0.3;
+
+    for (let i = 0; i < SIZE; i++) {
+        for (let j = 0; j < SIZE; j++) {
+            const val = currentMatrix[i][j];
+            if (val === 0) continue;
+
+            const x = j * CELL + GAP;
+            const y = i * CELL + GAP;
+            const w = CELL - GAP * 2;
+            const h = CELL - GAP * 2;
+
+            const baseColor = CANVAS_COLORS[val];
+            const lightColor = CANVAS_COLORS_LIGHT[val] || baseColor;
+
+            // Radial gradient: light from top-left
+            const grad = ctx.createRadialGradient(
+                x + w * 0.2, y + h * 0.2, w * 0.05,
+                x + w * 0.5, y + h * 0.5, w * 0.75
+            );
+            grad.addColorStop(0, lightColor);
+            grad.addColorStop(1, baseColor);
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, RADIUS);
+            ctx.fill();
+        }
+    }
+
+    ctx.restore();
+
+    // Specular highlight over the entire shape
+    if (hasContent) {
+        const sx = allMinJ * CELL + GAP;
+        const sy = allMinI * CELL + GAP;
+        const sw = (allMaxJ - allMinJ + 1) * CELL - GAP * 2;
+        const sh = (allMaxI - allMinI + 1) * CELL - GAP * 2;
+
+        // Clip to all non-zero cells
+        ctx.save();
+        ctx.beginPath();
+        for (let i = 0; i < SIZE; i++) {
+            for (let j = 0; j < SIZE; j++) {
+                if (currentMatrix[i][j] !== 0) {
+                    const cx = j * CELL + GAP;
+                    const cy = i * CELL + GAP;
+                    const cw = CELL - GAP * 2;
+                    const ch = CELL - GAP * 2;
+                    ctx.roundRect(cx, cy, cw, ch, RADIUS);
+                }
+            }
+        }
+        ctx.clip();
+
+        // Top-to-middle white gradient for glossy highlight
+        const hlGrad = ctx.createLinearGradient(0, sy, 0, sy + sh * 0.45);
+        hlGrad.addColorStop(0, 'rgba(255,255,255,0.45)');
+        hlGrad.addColorStop(0.6, 'rgba(255,255,255,0.08)');
+        hlGrad.addColorStop(1, 'rgba(255,255,255,0)');
+
+        ctx.fillStyle = hlGrad;
+        ctx.beginPath();
+        ctx.roundRect(sx, sy, sw, sh, RADIUS);
+        ctx.fill();
+
+        ctx.restore();
+
+        // Edge highlight: thin bright line along the top-left of shape
+        ctx.save();
+        ctx.beginPath();
+        for (let i = 0; i < SIZE; i++) {
+            for (let j = 0; j < SIZE; j++) {
+                if (currentMatrix[i][j] !== 0) {
+                    const cx = j * CELL + GAP;
+                    const cy = i * CELL + GAP;
+                    const cw = CELL - GAP * 2;
+                    const ch = CELL - GAP * 2;
+                    ctx.roundRect(cx, cy, cw, ch, RADIUS);
+                }
+            }
+        }
+        ctx.clip();
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(sx + 1, sy + 1, sw - 2, sh - 2, RADIUS);
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+// ===== Render Matrix Grid =====
+let isMouseDown = false;
+let eraseMode = false;
+
+function renderMatrix() {
+    matrixGrid.innerHTML = '';
+
+    for (let i = 0; i < SIZE; i++) {
+        for (let j = 0; j < SIZE; j++) {
+            const val = currentMatrix[i][j];
+            const cell = document.createElement('div');
+            cell.className = `matrix-cell val-${val}`;
+            cell.textContent = val;
+            cell.dataset.row = i;
+            cell.dataset.col = j;
+            cell.title = `[${i},${j}] = ${val}`;
+
+            cell.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                isMouseDown = true;
+                eraseMode = e.button === 2;
+                paintCell(i, j);
+            });
+
+            cell.addEventListener('mouseenter', () => {
+                if (isMouseDown) paintCell(i, j);
+            });
+
+            cell.addEventListener('contextmenu', e => e.preventDefault());
+
+            matrixGrid.appendChild(cell);
+        }
+    }
+
+    // Stats
+    const counts = { 0: 0, 1: 0, 2: 0, 3: 0 };
+    for (let i = 0; i < SIZE; i++) {
+        for (let j = 0; j < SIZE; j++) {
+            counts[currentMatrix[i][j]]++;
+        }
+    }
+    matrixStats.textContent =
+        `Red: ${counts[1]} | Pink: ${counts[2]} | Brown: ${counts[3]} | Empty: ${counts[0]}`;
+}
+
+function paintCell(i, j) {
+    currentMatrix[i][j] = eraseMode ? 0 : paintColor;
+    const val = currentMatrix[i][j];
+    // Update matrix cell
+    const idx = i * SIZE + j;
+    const cell = matrixGrid.children[idx];
+    if (cell) {
+        cell.className = `matrix-cell val-${val}`;
+        cell.textContent = val;
+        cell.title = `[${i},${j}] = ${val}`;
+    }
+    // Re-render entire canvas (trivially fast for 5x5)
+    renderCanvas();
+}
+
+// Update stats after drag ends
+document.addEventListener('mouseup', () => {
+    if (isMouseDown) {
+        isMouseDown = false;
+        updateStats();
+    }
+});
+
+function updateStats() {
+    const counts = { 0: 0, 1: 0, 2: 0, 3: 0 };
+    for (let i = 0; i < SIZE; i++) {
+        for (let j = 0; j < SIZE; j++) {
+            counts[currentMatrix[i][j]]++;
+        }
+    }
+    matrixStats.textContent =
+        `Red: ${counts[1]} | Pink: ${counts[2]} | Brown: ${counts[3]} | Empty: ${counts[0]}`;
+}
+
+// ===== Full Render =====
+function renderAll() {
+    renderMatrix();
+    renderCanvas();
+}
+
+// ===== Apply transformation and update =====
+function applyTransform(fn) {
+    currentMatrix = fn(currentMatrix);
+    renderAll();
+}
+
+// ===== Color Palette =====
+colorSwatches.forEach(swatch => {
+    swatch.addEventListener('click', () => {
+        paintColor = parseInt(swatch.dataset.color);
+        colorSwatches.forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
+    });
+});
+
+// ===== Matrix Operation Buttons =====
+document.getElementById('btnClear').addEventListener('click', () => {
+    currentMatrix = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
+    renderAll();
+});
+
+document.getElementById('btnFill').addEventListener('click', () => {
+    for (let i = 0; i < SIZE; i++) {
+        for (let j = 0; j < SIZE; j++) {
+            if (currentMatrix[i][j] === 0) {
+                currentMatrix[i][j] = 1;
+            }
+        }
+    }
+    renderAll();
+});
+
+document.getElementById('btnInvert').addEventListener('click', () => {
+    for (let i = 0; i < SIZE; i++) {
+        for (let j = 0; j < SIZE; j++) {
+            if (currentMatrix[i][j] === 0) {
+                currentMatrix[i][j] = 1;
+            } else if (currentMatrix[i][j] === 1) {
+                currentMatrix[i][j] = 0;
+            }
+        }
+    }
+    renderAll();
+});
+
+document.getElementById('btnReset').addEventListener('click', () => {
+    currentMatrix = createHeartMatrix();
+    paintColor = 0;
+    colorSwatches.forEach(s => s.classList.remove('active'));
+    document.querySelector('.color-swatch.erase').classList.add('active');
+    renderAll();
+});
+
+// ===== Graph Transformation Buttons =====
+document.querySelectorAll('#graphControls button').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const deg = btn.dataset.rotate;
+        const flip = btn.dataset.flip;
+
+        if (deg) {
+            applyTransform(m => rotateMatrix(m, parseInt(deg)));
+        } else if (flip === 'h') {
+            applyTransform(flipHorizontal);
+        } else if (flip === 'v') {
+            applyTransform(flipVertical);
+        }
+    });
+});
+
+// ===== Initial Render =====
+handleResize();
+renderAll();
+</script>
+</body>
+</html>
